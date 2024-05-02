@@ -168,8 +168,8 @@ public class Log4JDetector {
             System.exit(100);
         }
 
-        System.err.println("-- github.com/mergebase/log4j-detector v2021.12.29 (by mergebase.com) analyzing paths (could take a while).");
-        System.err.println("-- Note: specify the '--verbose' flag to have every file examined printed to STDERR.");
+        System.err.println("-- github.com/Boupouchi/Log4j-Detector-PFA v2024.04.29 (by mergebase.com) analyzing paths (could take a while).");
+       
         if (json) {
             System.out.println("{\"hits\":[");
         }
