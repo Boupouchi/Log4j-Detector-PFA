@@ -7,6 +7,10 @@ import javax.swing.filechooser.FileNameExtensionFilter;
 import java.awt.*;
 import java.awt.event.*;
 import java.io.*;
+import java.net.URI;
+import java.util.ArrayList;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 public class Log4jDetectorGUI extends JFrame {
 
@@ -121,58 +125,78 @@ public class Log4jDetectorGUI extends JFrame {
     }
 
     private void scanLogFile() {
-        String path = textFieldPath.getText();
-        if (path.isEmpty()) {
-            JOptionPane.showMessageDialog(this, "Please select a file or folder to scan.", "Error", JOptionPane.ERROR_MESSAGE);
-            return;
-        }
-
-        try {
-            String scanCommand = "java -jar log4j-detector-PFA_ISIC2.jar " + path;
-            System.out.println("Executing command: " + scanCommand); // Debugging output
-            Process process = Runtime.getRuntime().exec(scanCommand);
-
-            // Capture the output
-            BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()));
-            BufferedReader errorReader = new BufferedReader(new InputStreamReader(process.getErrorStream())); // Capture error stream
-            StringBuilder output = new StringBuilder();
-            String line;
-            while ((line = reader.readLine()) != null) {
-                output.append(line).append("\n");
-            }
-            reader.close();
-
-            // Read error stream and display any errors
-            StringBuilder errorOutput = new StringBuilder();
-            while ((line = errorReader.readLine()) != null) {
-                errorOutput.append(line).append("\n");
-            }
-            errorReader.close();
-            if (errorOutput.length() > 0) {
-                JOptionPane.showMessageDialog(this, "Error executing command:\n" + errorOutput.toString(), "Warning", JOptionPane.WARNING_MESSAGE);
-            }
-
-            // Display the output in the text area
-            textAreaResults.setText(output.toString());
-
-            // Display the report with clickable path and link
-            displayVulnerabilityReport(path);
-        } catch (IOException e) {
-            // Handle any errors that occur during the execution of the Log4j Detector tool
-            JOptionPane.showMessageDialog(this, "Error scanning log files: " + e.getMessage(), "Warning", JOptionPane.WARNING_MESSAGE);
-        }
+    String path = textFieldPath.getText();
+    if (path.isEmpty()) {
+        JOptionPane.showMessageDialog(this, "Please select a file or folder to scan.", "Error", JOptionPane.ERROR_MESSAGE);
+        return;
     }
 
-    private void displayVulnerabilityReport(String filePath) {
-        JFrame reportFrame = new JFrame("Vulnerability Report");
+    ArrayList<String> vulnerableFiles = new ArrayList<>();
 
-        JTextPane reportTextPane = new JTextPane();
-        reportTextPane.setEditable(false);
+    try {
+        String scanCommand = "java -jar log4j-detector-PFA_ISIC2.jar " + path;
+        System.out.println("Executing command: " + scanCommand); // Debugging output
+        Process process = Runtime.getRuntime().exec(scanCommand);
 
-        // Sample vulnerability report data
-        String reportData = "Vulnerability Report:\n\n" +
-                "File Path: <a href=\"" + filePath + "\">" + filePath + "</a>\n" +
-                "Vulnerability Type: Log4j Remote Code Execution (RCE)\n" +
+        // Capture the output
+        BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()));
+        String line;
+        while ((line = reader.readLine()) != null) {
+            if (line.endsWith(" VULNERABLE")) {
+                vulnerableFiles.add(line); // Add the entire line if it ends with " VULNERABLE"
+            }
+        }
+        reader.close();
+
+        // Capture and handle errors
+        BufferedReader errorReader = new BufferedReader(new InputStreamReader(process.getErrorStream()));
+        StringBuilder errorOutput = new StringBuilder();
+        while ((line = errorReader.readLine()) != null) {
+            errorOutput.append(line).append("\n");
+        }
+        errorReader.close();
+        if (errorOutput.length() > 0) {
+            JOptionPane.showMessageDialog(this, "Error executing command:\n" + errorOutput.toString(), "Warning", JOptionPane.WARNING_MESSAGE);
+        }
+
+        // Display the output in the text area, might be too verbose
+        // textAreaResults.setText(output.toString());
+
+        // Handle results
+        if (vulnerableFiles.isEmpty()) {
+            JOptionPane.showMessageDialog(this, "No vulnerable files found.", "Info", JOptionPane.INFORMATION_MESSAGE);
+        } else {
+            displayVulnerabilityReport(vulnerableFiles); // Call with list of vulnerable file paths
+        }
+    } catch (IOException e) {
+        JOptionPane.showMessageDialog(this, "Error scanning log files: " + e.getMessage(), "Warning", JOptionPane.WARNING_MESSAGE);
+    }
+}
+
+private void displayVulnerabilityReport(ArrayList<String> filePaths) {
+    JFrame reportFrame = new JFrame("Vulnerability Report");
+    JTextPane reportTextPane = new JTextPane();
+    reportTextPane.setEditable(false);
+
+    StringBuilder reportData = new StringBuilder("<html>");
+    reportData.append("<h2>Vulnerability Report:</h2>");
+    for (String fullPath : filePaths) {
+        String filePath = fullPath;
+        // Regex to extract the path ending with .jar or .zip
+        Pattern pattern = Pattern.compile("^(.*?\\.(jar|zip))");
+        Matcher matcher = pattern.matcher(fullPath);
+        if (matcher.find()) {
+            filePath = matcher.group(1); // This will be the file path up to .jar or .zip
+        }
+
+        String escapedFilePath = filePath.replace("\\", "/"); // Ensure forward slashes in file paths.
+        reportData.append("<p>File Path: <a href='file:///")
+                 .append(escapedFilePath)
+                 .append("'>")
+                 .append(filePath)
+                 .append("</a></p>");
+    }
+    reportData.append("Vulnerability Type: Log4j Remote Code Execution (RCE)\n" +
                 "Description: This log file contains evidence of Log4j vulnerability, potentially allowing remote code execution.\n" +
                 "\n" +
                 "Solution:\n" +
@@ -181,27 +205,40 @@ public class Log4jDetectorGUI extends JFrame {
                 "- Monitor system logs for any suspicious activity.\n" +
                 "\n" +
                 "For more information and updates on Log4j vulnerability, please refer to:\n" +
-                "<a href=\"https://logging.apache.org/log4j/2.x/security.html\">https://logging.apache.org/log4j/2.x/security.html</a>";
+                "<a href=\"https://logging.apache.org/log4j/2.x/security.html\">https://logging.apache.org/log4j/2.x/security.html</a>\n"+"</html>");
 
-        reportTextPane.setContentType("text/html");
-        reportTextPane.setText(reportData);
-        reportTextPane.addHyperlinkListener(e -> {
-            if (e.getEventType() == HyperlinkEvent.EventType.ACTIVATED) {
-                try {
-                    Desktop.getDesktop().browse(e.getURL().toURI());
-                } catch (Exception ex) {
-                    ex.printStackTrace();
+    reportTextPane.setContentType("text/html");
+    reportTextPane.setText(reportData.toString());
+    reportTextPane.addHyperlinkListener(e -> {
+        if (e.getEventType() == HyperlinkEvent.EventType.ACTIVATED) {
+            try {
+                URI uri = e.getURL().toURI();
+                if ("file".equals(uri.getScheme())) {
+                    File fileToOpen = new File(uri);
+                    if (fileToOpen.exists()) {
+                        Desktop.getDesktop().open(fileToOpen);
+                    } else {
+                        JOptionPane.showMessageDialog(reportFrame, "File does not exist: " + fileToOpen.getAbsolutePath(), "Error", JOptionPane.ERROR_MESSAGE);
+                    }
+                } else {
+                    JOptionPane.showMessageDialog(reportFrame, "Unsupported file protocol", "Error", JOptionPane.ERROR_MESSAGE);
                 }
+            } catch (Exception ex) {
+                ex.printStackTrace();
+                JOptionPane.showMessageDialog(reportFrame, "Failed to open the file: " + ex.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
             }
-        });
+        }
+    });
 
-        JScrollPane reportScrollPane = new JScrollPane(reportTextPane);
-        reportFrame.add(reportScrollPane);
-        reportFrame.setSize(600, 400);
-        reportFrame.setLocationRelativeTo(this);
-        reportFrame.setVisible(true);
-    }
+    
 
+    JScrollPane reportScrollPane = new JScrollPane(reportTextPane);
+    reportFrame.add(reportScrollPane);
+    reportFrame.setSize(600, 400);
+    reportFrame.setLocationRelativeTo(this);
+    reportFrame.setVisible(true);
+}
+    
     public static void main(String[] args) {
         SwingUtilities.invokeLater(new Runnable() {
             public void run() {
