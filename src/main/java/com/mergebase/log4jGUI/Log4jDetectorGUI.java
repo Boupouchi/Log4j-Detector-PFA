@@ -182,11 +182,10 @@ private void displayVulnerabilityReport(ArrayList<String> filePaths) {
     reportData.append("<h2>Vulnerability Report:</h2>");
     for (String fullPath : filePaths) {
         String filePath = fullPath;
-        // Regex to extract the path ending with .jar or .zip
-        Pattern pattern = Pattern.compile("^(.*?\\.(jar|zip))");
+        Pattern pattern = Pattern.compile("^(.*?\\.(jar|zip|war|ear))");
         Matcher matcher = pattern.matcher(fullPath);
         if (matcher.find()) {
-            filePath = matcher.group(1); // This will be the file path up to .jar or .zip
+            filePath = matcher.group(1); 
         }
 
         String escapedFilePath = filePath.replace("\\", "/"); // Ensure forward slashes in file paths.
@@ -196,6 +195,7 @@ private void displayVulnerabilityReport(ArrayList<String> filePaths) {
                  .append(filePath)
                  .append("</a></p>");
     }
+    
     reportData.append("Vulnerability Type: Log4j Remote Code Execution (RCE)\n" +
                 "Description: This log file contains evidence of Log4j vulnerability, potentially allowing remote code execution.\n" +
                 "\n" +
@@ -216,7 +216,26 @@ private void displayVulnerabilityReport(ArrayList<String> filePaths) {
                 if ("file".equals(uri.getScheme())) {
                     File fileToOpen = new File(uri);
                     if (fileToOpen.exists()) {
-                        Desktop.getDesktop().open(fileToOpen);
+                        String osName = System.getProperty("os.name").toLowerCase();
+                        if (fileToOpen.isDirectory()) {
+                            // If the path is a directory, open it normally
+                            Desktop.getDesktop().open(fileToOpen);
+                        } else {
+                            // Check the OS and execute the appropriate command to highlight the file
+                            if (osName.contains("windows")) {
+                                // Command to open explorer and select the file
+                                Runtime.getRuntime().exec("explorer.exe /select," + fileToOpen.getAbsolutePath());
+                            } else if (osName.contains("mac")) {
+                                // Command for Mac to reveal the file in Finder
+                                Runtime.getRuntime().exec(new String[]{"open", "-R", fileToOpen.getAbsolutePath()});
+                            } else if (osName.contains("linux")) {
+                                // Attempt to open and highlight using default file manager (e.g., Nautilus)
+                                Runtime.getRuntime().exec(new String[]{"nautilus", "--select", fileToOpen.getAbsolutePath()});
+                            } else {
+                                // Fallback for other systems is to just open the directory
+                                Desktop.getDesktop().open(fileToOpen.getParentFile());
+                            }
+                        }
                     } else {
                         JOptionPane.showMessageDialog(reportFrame, "File does not exist: " + fileToOpen.getAbsolutePath(), "Error", JOptionPane.ERROR_MESSAGE);
                     }
@@ -225,12 +244,13 @@ private void displayVulnerabilityReport(ArrayList<String> filePaths) {
                 }
             } catch (Exception ex) {
                 ex.printStackTrace();
-                JOptionPane.showMessageDialog(reportFrame, "Failed to open the file: " + ex.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
+                JOptionPane.showMessageDialog(reportFrame, "Failed to open the file or directory: " + ex.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
             }
         }
     });
-
     
+    
+        
 
     JScrollPane reportScrollPane = new JScrollPane(reportTextPane);
     reportFrame.add(reportScrollPane);
