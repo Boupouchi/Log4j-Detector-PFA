@@ -567,7 +567,7 @@ public class Log4JDetector {
                     }
                     System.out.println(prepareOutput(zipPath, buf));
                 } else if (isLog4J1_X) {
-                    buf.append(" contains Log4J-1.x  has reached End of Life in 2015 and is no longer supported.");
+                    buf.append(" contains Log4J-1.x VULNERABLE");
                     foundLog4j1 = true;
                     System.out.println(prepareOutput(zipPath, buf));
                 }
