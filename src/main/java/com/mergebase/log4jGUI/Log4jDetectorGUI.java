@@ -227,79 +227,48 @@ public class Log4jDetectorGUI extends JFrame {
             if (matcher.find()) {
                 filePath = matcher.group(1);
             }
-
+        
             String escapedFilePath = filePath.replace("\\", "/"); // Ensure forward slashes in file paths.
-            reportData.append("<p>File Path: <a href='file:///")
+            reportData.append("<p>File Path: <a href='file://")
                     .append(escapedFilePath)
                     .append("'>")
                     .append(filePath)
                     .append("</a></p>");
         }
+        
 
 
 
         reportData.append("<div style=\"text-align: center;\">" +
-                "<p>Vulnerability Type: Log4j Remote Code Execution (RCE)</p>" +
-                "<p>Description: This log file contains evidence of Log4j vulnerability, potentially allowing remote code execution.</p>" +
-                "<p>Solution:</p>" +
-                "<ul>" +
-                "<li>Update Log4j to a patched version (e.g., Log4j 2.17.1 or later).</li>" +
-                "<li>Implement appropriate security measures to mitigate the risk of exploitation.</li>" +
-                "<li>Monitor system logs for any suspicious activity.</li>" +
-                "</ul>" +
-                "<p>For more information and updates on Log4j vulnerability, please refer to:</p>" +
-                "<p><a href=\"https://logging.apache.org/log4j/2.x/security.html\">https://logging.apache.org/log4j/2.x/security.html</a></p>" +
-                "</div>" +
-                "</html>");
+        "<p>Vulnerability Type: Log4j Remote Code Execution (RCE)</p>" +
+        "<p>Description: This log file contains evidence of Log4j vulnerability, potentially allowing remote code execution.</p>" +
+        "<p>Solution:</p>" +
+        "<ul>" +
+        "<li>Update Log4j to a patched version (e.g., Log4j 2.17.1 or later).</li>" +
+        "<li>Implement appropriate security measures to mitigate the risk of exploitation.</li>" +
+        "<li>Monitor system logs for any suspicious activity.</li>" +
+        "</ul>" +
+        "<p>For more information and updates on Log4j vulnerability, please refer to:</p>" +
+        "<p><a href=\"https://logging.apache.org/log4j/2.x/security.html\">https://logging.apache.org/log4j/2.x/security.html</a></p>" +
+        "</div>" +
+        "</html>");
+
 
         reportTextPane.setContentType("text/html");
         reportTextPane.setText(reportData.toString());
         reportTextPane.addHyperlinkListener(e -> {
             if (e.getEventType() == HyperlinkEvent.EventType.ACTIVATED) {
                 try {
-                    URI uri = e.getURL().toURI();
-                    if ("file".equals(uri.getScheme())) {
-                        File fileToOpen = new File(uri);
-                        if (fileToOpen.exists()) {
-                            String osName = System.getProperty("os.name").toLowerCase();
-                            if (fileToOpen.isDirectory()) {
-                                // If the path is a directory, open it normally
-                                Desktop.getDesktop().open(fileToOpen);
-                            } else {
-                                // Check the OS and execute the appropriate command to highlight the file
-                                if (osName.contains("windows")) {
-                                    // Command to open explorer and select the file
-                                    Runtime.getRuntime().exec("explorer.exe /select," + fileToOpen.getAbsolutePath());
-                                } else if (osName.contains("mac")) {
-                                    // Command for Mac to reveal the file in Finder
-                                    Runtime.getRuntime()
-                                            .exec(new String[] { "open", "-R", fileToOpen.getAbsolutePath() });
-                                } else if (osName.contains("linux")) {
-                                    // Attempt to open and highlight using default file manager (e.g., Nautilus)
-                                    Runtime.getRuntime().exec(
-                                            new String[] { "nautilus", "--select", fileToOpen.getAbsolutePath() });
-                                } else {
-                                    // Fallback for other systems is to just open the directory
-                                    Desktop.getDesktop().open(fileToOpen.getParentFile());
-                                }
-                            }
-                        } else {
-                            JOptionPane.showMessageDialog(reportFrame,
-                                    "File does not exist: " + fileToOpen.getAbsolutePath(), "Error",
-                                    JOptionPane.ERROR_MESSAGE);
-                        }
-                    } else {
-                        JOptionPane.showMessageDialog(reportFrame, "Unsupported file protocol", "Error",
-                                JOptionPane.ERROR_MESSAGE);
-                    }
+                    Desktop.getDesktop().browse(e.getURL().toURI());
                 } catch (Exception ex) {
                     ex.printStackTrace();
                     JOptionPane.showMessageDialog(reportFrame,
-                            "Failed to open the file or directory: " + ex.getMessage(), "Error",
+                            "Failed to open the link: " + ex.getMessage(), "Error",
                             JOptionPane.ERROR_MESSAGE);
                 }
             }
         });
+        
 
         // Set the HTML content to the JTextPane
         reportTextPane.setText(reportData.toString());
